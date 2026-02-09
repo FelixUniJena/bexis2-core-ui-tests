@@ -289,7 +289,7 @@ async function findEditedUnit(page, unit) {
         'none'
     );
     await expect(page.locator(`#Units-datatypes-${index}`)).toHaveText(
-        'string'
+        'String'
     );
     await expect(
         page.locator(`#Units-measurementSystem-${index}`)
