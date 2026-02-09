@@ -29,7 +29,7 @@ async function checkDataStructure(page, hasTitle, hasDescription, hasPrimaryKey,
     }
     if (hasPrimaryKey) {
         // Click on make a part of primary key 
-        await page.click('text=Mark as part of primary key');
+        await page.locator('label:has(input[name="isKey"])').click();
     }
 
     if (hasOptionalValue) {
