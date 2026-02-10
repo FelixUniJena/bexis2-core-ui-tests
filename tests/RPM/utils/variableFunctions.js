@@ -333,8 +333,8 @@ async function checkConstraint(page) {
     await page.locator('#create').click();
     await page.waitForLoadState('load');
     await page.waitForTimeout(4250);
-    await page.locator('#create').click();
-    await page.waitForTimeout(300);
+    // await page.locator('#create').click();
+    // await page.waitForTimeout(300);
 
     try {
         // Click on the dropdown
