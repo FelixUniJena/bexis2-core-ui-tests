@@ -32,9 +32,9 @@ async function checkDataStructure(page, hasTitle, hasDescription, hasPrimaryKey,
         await page.locator('label:has(input[name="isKey"])').click();
     }
 
-    if (hasOptionalValue) {
+    if (!hasOptionalValue) {
         // Click on optional value
-        await page.click('text=Value can be optional');
+        await page.locator('label:has(input[name="isOptional"])').click();
     }
 
     if (hasName) {
