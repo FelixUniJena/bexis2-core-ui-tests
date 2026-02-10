@@ -5,8 +5,6 @@ async function checkVariables(page, variableName, hasDescription, hasUnit, hasDa
     await page.locator('#create').click();
     await page.waitForLoadState('load');
     await page.waitForTimeout(4000);
-    await page.locator('#create').click();
-    await page.waitForTimeout(250);
 
     // Fill in the name and description if provided
     if (variableName) {
@@ -333,8 +331,6 @@ async function checkConstraint(page) {
     await page.locator('#create').click();
     await page.waitForLoadState('load');
     await page.waitForTimeout(4250);
-    // await page.locator('#create').click();
-    // await page.waitForTimeout(300);
 
     try {
         // Click on the dropdown
