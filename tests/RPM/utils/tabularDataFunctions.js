@@ -38,6 +38,7 @@ async function uploadfiles(page){
 async function markingVariableData(page){
 
     await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'Reset' }).click();
     await page.waitForSelector('#selectVar');
     const title = page.locator('#edit > #title > b');
     await expect(title).toHaveText('Mark at least Variable and Data');
@@ -52,7 +53,7 @@ async function markingVariableData(page){
 
 async function EnterTitleandDesc(page,title,desc){
     await page.waitForTimeout(500)
-    //verify the primary key alert message
+    // verify the primary key alert message
     const alertmsg = page.locator('.alert-message > p');
     await  page.waitForSelector('.alert-message > p');
     await expect(alertmsg).toHaveText('Please select a (combined) primary key.');
