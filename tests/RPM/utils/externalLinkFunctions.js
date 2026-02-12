@@ -53,19 +53,10 @@ async function checkExternalLink(page, linkName, hasType, hasPrefix, hasURI) {
         await page.waitForLoadState('load');
         await page.waitForTimeout(1500);
         // Check if the save button is enable and reload the page
-        const saveButton = page.locator('button#save').click();
-        await page.waitForTimeout(500);
-
-        await page.waitForSelector('.toast[data-testid=toast] .text-base');
-        const toast = await page.locator('.toast[data-testid=toast]');
-
-        let expectedMessage = 'External link created.';
-        await expect(await toast.locator('.text-base')).toHaveText(expectedMessage);
-        await toast.locator('button').click(); // Close the toast
-        await page.reload();
+        const saveButton = page.locator('button#save');
+        await expect(saveButton).toBeDisabled();
+        await page.reload()
     }
-
-   
 }
 
 async function findExternalLink(page, linkName) {
