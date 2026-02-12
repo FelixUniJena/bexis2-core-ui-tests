@@ -1,7 +1,6 @@
 import { expect } from "@playwright/test";
 
 async function checkVariables(page, variableName, hasDescription, hasUnit, hasDataType, hasMissingValueName, hasMissingValueDes, hasMeanings, hasConstraints, hasApproved) {
-    // await page.waitForLoadState('load');
     await page.waitForTimeout(3000);
     await page.locator('#create').click();
     await page.waitForLoadState('load');
@@ -329,10 +328,10 @@ async function findEditedVariable(page, variable) {
 }
 
 async function checkConstraint(page) {
-    await page.waitForLoadState('load');
+    await page.waitForTimeout(3000);
     await page.locator('#create').click();
     await page.waitForLoadState('load');
-    await page.waitForTimeout(4250);
+    await page.waitForTimeout(4000);
 
     try {
         // Click on the dropdown
