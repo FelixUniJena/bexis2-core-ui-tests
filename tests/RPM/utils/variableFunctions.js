@@ -9,7 +9,7 @@ async function checkVariables(page, variableName, hasDescription, hasUnit, hasDa
     // Fill in the name and description if provided
     if (variableName) {
         await page.waitForTimeout(250);
-        await page.locator('input[id=VariableTemplates-search]').fill(variableName);
+        await page.locator('input[id=name]').fill(variableName);
     }
     if (hasDescription) {
         await page.waitForTimeout(250);
