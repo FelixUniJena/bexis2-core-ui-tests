@@ -164,12 +164,10 @@ async function checkVariables(page, variableName, hasDescription, hasUnit, hasDa
 }
 async function createVariable(page, variableName) {
 
-    await page.waitForLoadState('load');
+    await page.waitForTimeout(3000);
     await page.locator('#create').click();
     await page.waitForLoadState('load');
-    await page.waitForTimeout(4250);
-    await page.locator('#create').click();
-    await page.waitForTimeout(350);
+    await page.waitForTimeout(4000);
 
     // Adding name
     await page.waitForTimeout(250);
