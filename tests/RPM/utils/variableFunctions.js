@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 async function checkVariables(page, variableName, hasDescription, hasUnit, hasDataType, hasMissingValueName, hasMissingValueDes, hasMeanings, hasConstraints, hasApproved) {
     await page.waitForLoadState('load');
     await page.locator('#create').click();
-    await page.waitForLoadState('load');
+    // await page.waitForLoadState('load');
     await page.waitForTimeout(4000);
 
     // Fill in the name and description if provided
