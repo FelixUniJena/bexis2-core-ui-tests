@@ -260,10 +260,10 @@ async function editVariable(page) {
 
     // Adding missing value name
     await page.waitForTimeout(250)
-    await page.locator('input[id=missing-value-name]').fill('Test Missing Value Edited');
+    await page.locator('input[id=missing-value-name-0]').fill('Test Missing Value Edited');
 
     // Adding missing value description
-    await page.locator('input[id=missing-value-description]').fill('Edit Test Missing value Des.');
+    await page.locator('input[id=missing-value-description-0]').fill('Edit Test Missing value Des.');
     await page.waitForTimeout(1500);
 
     // Check if the save button is enable and reload the page
