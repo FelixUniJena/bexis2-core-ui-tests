@@ -23,7 +23,20 @@ async function createNewtabularData(page, title,description) {
           await page.waitForTimeout(500)
 
 }
+
 async function uploadfiles(page){
+    const removeButtons = page.locator('button[title="Remove file"]');
+
+    // Solange Buttons existieren → löschen
+    while (await removeButtons.count() > 0) {
+        await removeButtons.first().click();
+
+        // Warten bis das Element wirklich entfernt wurde
+        await expect(removeButtons).toHaveCount(
+            (await removeButtons.count()) - 1
+        );
+    }
+
     const filePath = path.resolve(__dirname, '../../Date_and_time_formats.csv');
     const handle = page.locator('input[type="file"]').nth(0);
     await handle.setInputFiles(filePath);
@@ -59,7 +72,7 @@ async function EnterTitleandDesc(page,title,desc){
     await expect(alertmsg).toHaveText('Please select a (combined) primary key.');
     await page.waitForTimeout(500)
     await page.locator('#title').fill(title);
-    await page.locator(':nth-child(2) > #description-container > .label > #description').fill(desc);
+    await page.locator('#description').fill(desc);
 }
 
 async function AssignDataTypeDisplayPattern(page,getindex,datatype,displaypattern){
@@ -102,8 +115,8 @@ async function validatePrimaryandSucessSymbols(page){
     await  page.waitForSelector('.text-error-500');
     const primarykey = page.locator('.text-error-500');
     await expect(primarykey).toBeVisible();
-    const succes = page.locator('.gap-1 > .text-success-500');
     await  page.waitForSelector('.gap-1 > .text-success-500');
+    const succes = page.locator('.gap-1 > .text-success-500');
     await expect(succes).toBeVisible();
 }
 
