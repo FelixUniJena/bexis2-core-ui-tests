@@ -3,61 +3,104 @@ name: Daily Playwright Test
 on:
   schedule:
     - cron: "0 7 * * *"
+
   workflow_dispatch:
     inputs:
       host:
         description: "Zu testende Adresse"
         required: false
         default: ""
+
       account_username:
         description: "Benutzername"
         required: false
         default: ""
+
       account_password:
         description: "Passwort"
         required: false
         default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-playwright-test
+  cancel-in-progress: false
 
 jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
 
+    # Enthält Chromium, Firefox, WebKit und alle benötigten
+    # Linux-Systemabhängigkeiten.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
+      options: --user 1001 --ipc=host
+
+    # Innerhalb eines Job-Containers wäre der Standard sonst "sh".
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      CI: "true"
+
+      # Verhindert versehentliche Browser-Downloads während npm ci.
+      # Die Browser befinden sich bereits im Docker-Image.
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
     steps:
       - name: Repo auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Node einrichten
-        uses: actions/setup-node@v4
+      # Bleibt enthalten, damit garantiert Node.js 24 verwendet wird
+      # und der npm-Cache über GitHub Actions verfügbar ist.
+      - name: Node.js einrichten und npm cachen
+        uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: "24"
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Dependencies installieren
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --fund=false
 
-      - name: Playwright aktualisieren
-        run: npm install -D @playwright/test@latest
+      # Docker-Image und npm-Paket müssen dieselbe Version verwenden.
+      - name: Playwright-Version prüfen
+        run: |
+          EXPECTED_VERSION="1.62.0"
 
-      - name: Playwright Browser installieren
-        run: npx playwright install --with-deps
+          INSTALLED_VERSION="$(
+            node -p "require('./node_modules/@playwright/test/package.json').version"
+          )"
+
+          echo "Docker-Image-Version: $EXPECTED_VERSION"
+          echo "Installierte npm-Version: $INSTALLED_VERSION"
+
+          if [ "$INSTALLED_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::Die Playwright-Version stimmt nicht mit dem Docker-Image überein."
+            echo "::error::Erwartet: $EXPECTED_VERSION"
+            echo "::error::Installiert: $INSTALLED_VERSION"
+            echo "::error::Bitte folgenden Befehl lokal ausführen und package-lock.json committen:"
+            echo "::error::npm install --save-dev --save-exact @playwright/test@$EXPECTED_VERSION"
+            exit 1
+          fi
 
       - name: Env-Datei erstellen
-        shell: bash
+        env:
+          HOST_VALUE: ${{ inputs.host || secrets.HOST }}
+          USER_VALUE: ${{ inputs.account_username || secrets.ACCOUNT_USERNAME }}
+          PASS_VALUE: ${{ inputs.account_password || secrets.ACCOUNT_PASSWORD }}
         run: |
-          touch .env
+          {
+            printf 'HOST=%s\n' "$HOST_VALUE"
+            printf 'ACCOUNT_USERNAME=%s\n' "$USER_VALUE"
+            printf 'ACCOUNT_PASSWORD=%s\n' "$PASS_VALUE"
+          } > .env
 
-          HOST_INPUT="${{ github.event.inputs.host }}"
-          USER_INPUT="${{ github.event.inputs.account_username }}"
-          PASS_INPUT="${{ github.event.inputs.account_password }}"
-
-          HOST_VALUE="${HOST_INPUT:-${{ secrets.HOST }}}"
-          USER_VALUE="${USER_INPUT:-${{ secrets.ACCOUNT_USERNAME }}}"
-          PASS_VALUE="${PASS_INPUT:-${{ secrets.ACCOUNT_PASSWORD }}}"
-
-          echo "HOST=$HOST_VALUE" >> .env
-          echo "ACCOUNT_USERNAME=$USER_VALUE" >> .env
-          echo "ACCOUNT_PASSWORD=$PASS_VALUE" >> .env
+          chmod 600 .env
 
       - name: Tests ausführen
         id: run_tests
@@ -66,40 +109,55 @@ jobs:
 
       - name: Mail-Inhalt erstellen
         if: always()
-        shell: bash
+        env:
+          TEST_OUTCOME: ${{ steps.run_tests.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ "${{ steps.run_tests.outcome }}" = "success" ]; then
+          if [ "$TEST_OUTCOME" = "success" ]; then
             echo "MAIL_SUBJECT=Playwright Test - success" >> "$GITHUB_ENV"
 
-            echo "<h2>Playwright Test</h2>
-            <p>Status: ✅ Erfolgreich</p>
-            <p><a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'>GitHub Action öffnen</a></p>" > mail-body.html
-
+            cat > mail-body.html <<EOF
+          <h2>Playwright Test</h2>
+          <p>Status: ✅ Erfolgreich</p>
+          <p>
+            <a href="$RUN_URL">GitHub Action öffnen</a>
+          </p>
+          EOF
           else
             echo "MAIL_SUBJECT=Playwright Test - failure" >> "$GITHUB_ENV"
 
-            echo "<h2>Playwright Test</h2>
-            <p>Status: ❌ Fehlgeschlagen</p>
-            <p><a href='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'>GitHub Action öffnen</a></p>" > mail-body.html
+            cat > mail-body.html <<EOF
+          <h2>Playwright Test</h2>
+          <p>Status: ❌ Fehlgeschlagen</p>
+          <p>
+            <a href="$RUN_URL">GitHub Action öffnen</a>
+          </p>
+          EOF
           fi
 
-      - name: Nur fehlgeschlagene Playwright-Dateien sammeln
+      - name: Fehlgeschlagene Playwright-Dateien sammeln
         if: always()
-        shell: bash
         run: |
           mkdir -p failed-playwright-files
 
-          find test-results -type f \( \
-            -name "*.png" -o \
-            -name "error-context.md" \
-          \) -print0 | while IFS= read -r -d '' file; do
-            mkdir -p "failed-playwright-files/$(dirname "$file")"
-            cp "$file" "failed-playwright-files/$file"
-          done
+          if [ ! -d "test-results" ]; then
+            echo "Kein test-results-Verzeichnis vorhanden."
+            exit 0
+          fi
+
+          find test-results -type f \
+            \( \
+              -name "*.png" \
+              -o -name "error-context.md" \
+            \) \
+            -exec cp --parents '{}' failed-playwright-files/ ';'
+
+          echo "Gesammelte Dateien:"
+          find failed-playwright-files -type f -print || true
 
       - name: Fehlgeschlagene Screenshots hochladen
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-failed-files
           path: failed-playwright-files
@@ -121,8 +179,8 @@ jobs:
           html_body: file://mail-body.html
 
       - name: Workflow fehlschlagen lassen, wenn Tests fehlgeschlagen sind
-        if: steps.run_tests.outcome != 'success'
+        if: always() && steps.run_tests.outcome != 'success'
         run: |
           echo "Mindestens ein Playwright-Test ist fehlgeschlagen."
-          echo "Bitte die Artifacts prüfen."
+          echo "Bitte die Artifacts und den Playwright-Bericht prüfen."
           exit 1
